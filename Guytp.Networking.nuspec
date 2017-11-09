@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <metadata xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <id>Guytp.Networking</id>
+    <version>1.0.0.0</version>
+    <authors>Guytp</authors>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Provides a common client/server network framework for TCP/IP streams</description>
+	<dependencies> 
+		<group targetFramework="net452">
+			<dependency id="Guytp.Logging" version="1.0.231.0" />
+		</group>
+	</dependencies>
+  </metadata>
+  <files>
+    <file src="Guytp.Networking\bin\Release\Guytp.Networking.dll" target="lib\net452" />
+  </files>
+</package>
