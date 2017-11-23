@@ -104,7 +104,7 @@ namespace Guytp.Networking
                             if (queuedMessage != null)
                             {
                                 Type messageType = queuedMessage.GetType();
-                                if (MessageHandlers.ContainsKey(messageType))
+                                if (MessageHandlers.ContainsKey(messageType) && CanHandleMessage(messageType, connection.OutboundMessageQueue))
                                 {
                                     Action act = () =>
                                     {
@@ -184,6 +184,11 @@ namespace Guytp.Networking
                     Logger.ApplicationInstance.Error("Failed to dispose client", ex);
                 }
             Logger.ApplicationInstance.Info("Finished network server thread");
+        }
+
+        protected virtual bool CanHandleMessage(Type messageType, NetworkMessageQueue outboundMessageQueue)
+        {
+            return true;
         }
 
         public void Dispose()
