@@ -51,6 +51,8 @@ namespace Guytp.Networking
         private int _expectedPingResponseId;
         private bool _isPingRequestWriteDue;
 
+        public event EventHandler<EventArgs> Invalidated;
+
         public NetworkConnection(Socket socket)
         {
             LastDataReceived = DateTime.UtcNow;
@@ -326,6 +328,7 @@ namespace Guytp.Networking
             Logger.ApplicationInstance.Warn("Connection invalidated: " + reason);
             IsInvalidated = true;
             InvalidationReason = reason;
+            Invalidated?.Invoke(this, new EventArgs());
         }
 
         public void Dispose()
