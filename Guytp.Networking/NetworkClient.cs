@@ -75,113 +75,120 @@ namespace Guytp.Networking
             Logger.ApplicationInstance.Debug("Starting network client thread");
             while (_isAlive)
             {
-                // If we're invalidated, dispose of that socket now
-                if (_connection != null && _connection.IsInvalidated)
+                try
                 {
+                    // If we're invalidated, dispose of that socket now
+                    if (_connection != null && _connection.IsInvalidated)
+                    {
+                        try
+                        {
+                            IsConnected = false;
+                            _connection.Dispose();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.ApplicationInstance.Error("Failed to dispose of a broken connection", ex);
+                        }
+                        finally
+                        {
+                            _connection = null;
+                            _socket = null;
+                            Disconnected?.Invoke(this, new EventArgs());
+                        }
+                    }
+
+                    // Ensure we have a valid socket and connection before continuing
                     try
                     {
-                        IsConnected = false;
-                        _connection.Dispose();
+                        EnsureConnection();
                     }
                     catch (Exception ex)
                     {
-                        Logger.ApplicationInstance.Error("Failed to dispose of a broken connection", ex);
-                    }
-                    finally
-                    {
-                        _connection = null;
+                        // Some error connecting, wait and try again
+                        try
+                        {
+                            _connection?.Dispose();
+                        }
+                        catch
+                        {
+                            // Intentionally swallowed
+                        }
                         _socket = null;
-                        Disconnected?.Invoke(this, new EventArgs());
-                    }
-                }
-
-                // Ensure we have a valid socket and connection before continuing
-                try
-                {
-                    EnsureConnection();
-                }
-                catch (Exception ex)
-                {
-                    // Some error connecting, wait and try again
-                    try
-                    {
-                        _connection?.Dispose();
-                    }
-                    catch
-                    {
-                        // Intentionally swallowed
-                    }
-                    _socket = null;
-                    _connection = null;
-                    Logger.ApplicationInstance.Error("Failed to connect to remote host", ex);
-                    DateTime waitUntil = DateTime.UtcNow.AddSeconds(5);
-                    while (DateTime.UtcNow < waitUntil && _isAlive)
-                        Thread.Sleep(50);
-                    break;
-                }
-
-                // We have a valid socket here, so do normal processing
-                try
-                {
-                    // Read a request from this connection
-                    try
-                    {
-                        _connection.PerformReadCycle();
-                    }
-                    catch (Exception ex)
-                    {
-                        _connection.Invalidate("Error reading data from connection");
-                        Logger.ApplicationInstance.Error("Error reading data from connection", ex);
+                        _connection = null;
+                        Logger.ApplicationInstance.Error("Failed to connect to remote host", ex);
+                        DateTime waitUntil = DateTime.UtcNow.AddSeconds(5);
+                        while (DateTime.UtcNow < waitUntil && _isAlive)
+                            Thread.Sleep(50);
                         continue;
                     }
 
-                    // Now try to process any messages held by this connection
+                    // We have a valid socket here, so do normal processing
                     try
                     {
-                        object queuedMessage = _connection.DequeueReceivedMessage();
-                        if (queuedMessage != null)
+                        // Read a request from this connection
+                        try
                         {
-                            Type messageType = queuedMessage.GetType();
-                            if (MessageHandlers.ContainsKey(messageType))
-                                MessageHandlers[messageType].Handle(queuedMessage, _connection.OutboundMessageQueue);
-                            else
-                                throw new Exception("Unknown message " + messageType.Name);
+                            _connection.PerformReadCycle();
+                        }
+                        catch (Exception ex)
+                        {
+                            _connection.Invalidate("Error reading data from connection");
+                            Logger.ApplicationInstance.Error("Error reading data from connection", ex);
+                            continue;
+                        }
+
+                        // Now try to process any messages held by this connection
+                        try
+                        {
+                            object queuedMessage = _connection.DequeueReceivedMessage();
+                            if (queuedMessage != null)
+                            {
+                                Type messageType = queuedMessage.GetType();
+                                if (MessageHandlers.ContainsKey(messageType))
+                                    MessageHandlers[messageType].Handle(queuedMessage, _connection.OutboundMessageQueue);
+                                else
+                                    throw new Exception("Unknown message " + messageType.Name);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _connection.Invalidate("Exception handling/dequeueing message");
+                            Logger.ApplicationInstance.Error("Error handling/dequeueing message read", ex);
+                            continue;
+                        }
+
+                        // Perform ping checks
+                        try
+                        {
+                            _connection.PerformPingCheck();
+                        }
+                        catch (Exception ex)
+                        {
+                            _connection.Invalidate("Exception attempting to ping check client");
+                            Logger.ApplicationInstance.Error("Error with ping check", ex);
+                            continue;
+                        }
+
+                        // Flush client
+                        try
+                        {
+                            _connection.PerformWriteCycle();
+                        }
+                        catch (Exception ex)
+                        {
+                            _connection.Invalidate("Exception attempting to write to client");
+                            Logger.ApplicationInstance.Error("Error performing write cycle to client", ex);
+                            continue;
                         }
                     }
                     catch (Exception ex)
                     {
-                        _connection.Invalidate("Exception handling/dequeueing message");
-                        Logger.ApplicationInstance.Error("Error handling/dequeueing message read", ex);
-                        continue;
-                    }
-
-                    // Perform ping checks
-                    try
-                    {
-                        _connection.PerformPingCheck();
-                    }
-                    catch (Exception ex)
-                    {
-                        _connection.Invalidate("Exception attempting to ping check client");
-                        Logger.ApplicationInstance.Error("Error with ping check", ex);
-                        continue;
-                    }
-
-                    // Flush client
-                    try
-                    {
-                        _connection.PerformWriteCycle();
-                    }
-                    catch (Exception ex)
-                    {
-                        _connection.Invalidate("Exception attempting to write to client");
-                        Logger.ApplicationInstance.Error("Error performing write cycle to client", ex);
-                        continue;
+                        Logger.ApplicationInstance.Error("Fatal error in network client", ex);
                     }
                 }
                 catch (Exception ex)
                 {
-                    Logger.ApplicationInstance.Error("Fatal error in network client", ex);
+                    Logger.ApplicationInstance.Error("Fatal error that was not caught by network client", ex);
                 }
             }
 

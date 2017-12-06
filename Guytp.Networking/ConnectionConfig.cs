@@ -55,8 +55,8 @@ namespace Guytp.Networking
             PingResponseTime = TimeSpan.FromSeconds(5);
             PingCheckInactivityTime = TimeSpan.FromSeconds(10);
             MaximumInboundPacketSize = 1000000;
-            MaximumInboundQueueSize = 10;
-            MaximumOutboundQueueSize = 100;
+            MaximumInboundQueueSize = 1000;
+            MaximumOutboundQueueSize = 1000;
         }
         #endregion
     }

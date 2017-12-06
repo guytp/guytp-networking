@@ -1,8 +1,6 @@
-﻿using System;
+﻿using Guytp.Logging;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Guytp.Networking
 {
@@ -25,7 +23,10 @@ namespace Guytp.Networking
             if (message == null)
                 throw new ArgumentNullException(nameof(message));
             lock (_messageLocker)
+            {
                 _messages.Enqueue(message);
+                Logger.ApplicationInstance.Debug("Added " + message.GetType().Name + " to network message queue, size is now " + _messages.Count);
+            }
         }
 
         internal object DequeueMessage()
@@ -33,7 +34,11 @@ namespace Guytp.Networking
             if (_messages.Count < 1)
                 return null;
             lock (_messageLocker)
-                return _messages.Dequeue();
+            {
+                object obj = _messages.Dequeue();
+                Logger.ApplicationInstance.Debug("Dequeued " + obj.GetType().Name + " from network message queue, size is now " + _messages.Count);
+                return obj;
+            }
         }
     }
 }
