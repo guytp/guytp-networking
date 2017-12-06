@@ -329,6 +329,7 @@ namespace Guytp.Networking
             IsInvalidated = true;
             InvalidationReason = reason;
             Invalidated?.Invoke(this, new EventArgs());
+            OutboundMessageQueue.Invalidate(reason);
         }
 
         public void Dispose()

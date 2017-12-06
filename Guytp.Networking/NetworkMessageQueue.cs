@@ -9,6 +9,11 @@ namespace Guytp.Networking
         private readonly object _messageLocker = new object();
         private readonly Queue<object> _messages = new Queue<object>();
 
+
+        public bool IsInvalidated { get; private set; }
+        public event EventHandler<EventArgs> Invalidated;
+        public string InvalidationReason { get; private set; }
+
         public int QueueCount
         {
             get
@@ -39,6 +44,13 @@ namespace Guytp.Networking
                 Logger.ApplicationInstance.Debug("Dequeued " + obj.GetType().Name + " from network message queue, size is now " + _messages.Count);
                 return obj;
             }
+        }
+
+        internal void Invalidate(string reason)
+        {
+            IsInvalidated = true;
+            InvalidationReason = reason;
+            Invalidated?.Invoke(this, new EventArgs());
         }
     }
 }
