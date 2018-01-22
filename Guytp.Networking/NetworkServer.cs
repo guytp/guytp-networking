@@ -108,7 +108,14 @@ namespace Guytp.Networking
                                 {
                                     Action act = () =>
                                     {
-                                        MessageHandlers[messageType].Handle(queuedMessage, connection.OutboundMessageQueue);
+                                        try
+                                        {
+                                            MessageHandlers[messageType].Handle(queuedMessage, connection.OutboundMessageQueue);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Logger.ApplicationInstance.Error("Error executing message handler of type " + messageType.Name, ex);
+                                        }
                                     };
                                     act.BeginInvoke(null, null);
                                 }
