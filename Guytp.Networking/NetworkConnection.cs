@@ -189,7 +189,7 @@ namespace Guytp.Networking
                     strm.Flush();
                     strm.Position = 0;
                     object o = _formatter.Deserialize(strm);
-                    Logger.ApplicationInstance.Debug("Received message of type " + o.GetType().Name);
+                    Logger.ApplicationInstance.Trace("Received message of type " + o.GetType().Name);
                     _inboundMessages.Enqueue(o);
                 }
 
@@ -206,7 +206,7 @@ namespace Guytp.Networking
             if (_inboundMessages.Count < 1)
                 return null;
             object obj = _inboundMessages.Dequeue();
-            Logger.ApplicationInstance.Debug("Dequeued received message of " + obj.GetType().Name);
+            Logger.ApplicationInstance.Trace("Dequeued received message of " + obj.GetType().Name);
             return obj;
         }
 
@@ -286,7 +286,7 @@ namespace Guytp.Networking
                 intConversionBuffer = BitConverter.GetBytes(_lastPingRequestReceivedId);
                 Array.Copy(intConversionBuffer, 0, outputBuffer, offset, 4);
                 offset += 4;
-                Logger.ApplicationInstance.Debug("Sending ping response with ID " + _lastPingRequestReceivedId);
+                Logger.ApplicationInstance.Trace("Sending ping response with ID " + _lastPingRequestReceivedId);
                 _isPingResponseWriteDue = false;
             }
             if (_isPingRequestWriteDue)
@@ -301,7 +301,7 @@ namespace Guytp.Networking
                 intConversionBuffer = BitConverter.GetBytes(_expectedPingResponseId);
                 Array.Copy(intConversionBuffer, 0, outputBuffer, offset, 4);
                 offset += 4;
-                Logger.ApplicationInstance.Debug("Sending ping request with ID " + _expectedPingResponseId);
+                Logger.ApplicationInstance.Trace("Sending ping request with ID " + _expectedPingResponseId);
                 _isPingRequestWriteDue = false;
             }
             if (messageBuffer != null)

@@ -61,7 +61,7 @@ namespace Guytp.Networking
 
         private void MainThread()
         {
-            Logger.ApplicationInstance.Info("Network server thread is alive");
+            Logger.ApplicationInstance.Debug("Network server thread is alive");
             List<NetworkConnection> connections = new List<NetworkConnection>();
             while (_isAlive)
             {
@@ -74,7 +74,7 @@ namespace Guytp.Networking
                         {
                             Socket acceptedSocket = _tcpListener.AcceptSocket();
                             connections.Add(new NetworkConnection(acceptedSocket));
-                            Logger.ApplicationInstance.Info("New connection accepted");
+                            Logger.ApplicationInstance.Debug("New connection accepted");
                         }
                         catch (Exception ex)
                         {

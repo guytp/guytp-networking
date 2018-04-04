@@ -30,8 +30,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Guytp.Logging, Version=1.0.231.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\Guytp.Logging.1.0.231.0\lib\net45\Guytp.Logging.dll</HintPath>
+    <Reference Include="Guytp.Logging, Version=1.0.791.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Guytp.Logging.1.0.791.0\lib\net45\Guytp.Logging.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -54,9 +54,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config">
-      <SubType>Designer</SubType>
-    </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

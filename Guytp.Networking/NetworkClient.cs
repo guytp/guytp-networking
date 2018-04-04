@@ -69,7 +69,7 @@ namespace Guytp.Networking
             _connection = new NetworkConnection(_socket);
             IsConnected = true;
             Connected?.Invoke(this, new EventArgs());
-            Logger.ApplicationInstance.Info("Connected to " + _ipAddress + ":" + _port);
+            Logger.ApplicationInstance.Debug("Connected to " + _ipAddress + ":" + _port);
         }
 
         private void MainThread()

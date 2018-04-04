@@ -30,7 +30,7 @@ namespace Guytp.Networking
             lock (_messageLocker)
             {
                 _messages.Enqueue(message);
-                Logger.ApplicationInstance.Debug("Added " + message.GetType().Name + " to network message queue, size is now " + _messages.Count);
+                Logger.ApplicationInstance.Trace("Added " + message.GetType().Name + " to network message queue, size is now " + _messages.Count);
             }
         }
 
@@ -41,7 +41,7 @@ namespace Guytp.Networking
             lock (_messageLocker)
             {
                 object obj = _messages.Dequeue();
-                Logger.ApplicationInstance.Debug("Dequeued " + obj.GetType().Name + " from network message queue, size is now " + _messages.Count);
+                Logger.ApplicationInstance.Trace("Dequeued " + obj.GetType().Name + " from network message queue, size is now " + _messages.Count);
                 return obj;
             }
         }
