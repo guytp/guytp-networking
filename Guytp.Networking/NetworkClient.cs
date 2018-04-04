@@ -23,7 +23,10 @@ namespace Guytp.Networking
         private Socket _socket;
         NetworkConnection _connection = null;
 
-        protected abstract Dictionary<Type, IMessageHandler> MessageHandlers { get; }
+
+        protected abstract Dictionary<Type, MessageHandlerDelegate> MessageHandlers { get; }
+
+
         protected NetworkMessageQueue MessageQueue => _connection.OutboundMessageQueue;
         public bool IsConnected { get; private set; }
 
@@ -145,7 +148,7 @@ namespace Guytp.Networking
                             {
                                 Type messageType = queuedMessage.GetType();
                                 if (MessageHandlers.ContainsKey(messageType))
-                                    MessageHandlers[messageType].Handle(queuedMessage, _connection.OutboundMessageQueue);
+                                    MessageHandlers[messageType](queuedMessage, _connection.OutboundMessageQueue);
                                 else
                                     throw new Exception("Unknown message " + messageType.Name);
                             }

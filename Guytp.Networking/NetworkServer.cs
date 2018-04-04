@@ -20,7 +20,7 @@ namespace Guytp.Networking
 
         private readonly int _port;
 
-        protected abstract Dictionary<Type, IMessageHandler> MessageHandlers { get; }
+        protected abstract Dictionary<Type, MessageHandlerDelegate> MessageHandlers { get; }
 
         protected NetworkServer(IPAddress ipAddress, int port)
         {
@@ -110,7 +110,7 @@ namespace Guytp.Networking
                                     {
                                         try
                                         {
-                                            MessageHandlers[messageType].Handle(queuedMessage, connection.OutboundMessageQueue);
+                                            MessageHandlers[messageType](queuedMessage, connection.OutboundMessageQueue);
                                         }
                                         catch (Exception ex)
                                         {
