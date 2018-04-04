@@ -46,10 +46,9 @@
     <Compile Include="ConnectionConfig.cs" />
     <Compile Include="ConnectionErrorEventArgs.cs" />
     <Compile Include="ConnectionInvalidatedEventArgs.cs" />
-    <Compile Include="MessageHandler.cs" />
+    <Compile Include="Delegates.cs" />
     <Compile Include="NetworkConnection.cs" />
     <Compile Include="NetworkClient.cs" />
-    <Compile Include="IMessageHandler.cs" />
     <Compile Include="NetworkMessageQueue.cs" />
     <Compile Include="NetworkServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
