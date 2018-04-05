@@ -12,15 +12,16 @@ namespace Guytp.Networking
         private readonly IPAddress _ipAddress;
 
         private readonly int _port;
-       
+        private readonly bool _sslAllowRemoteCertificateChainErrors;
         private bool _isAlive;
 
         private Thread _thread;
+        private readonly string _sslServername;
 
         /// <summary>
         /// Defines the socket we are using.
         /// </summary>
-        private Socket _socket;
+        private TcpClient _client;
         NetworkConnection _connection = null;
 
 
@@ -35,10 +36,12 @@ namespace Guytp.Networking
         //public event EventHandler<ConnectionInvalidatedEventArgs> Invalidated;
         //public event EventHandler<ConnectionErrorEventArgs> ConnectionError;
 
-        protected NetworkClient(IPAddress ipAddress, int port)
+        protected NetworkClient(IPAddress ipAddress, int port, string sslServername = null, bool sslAllowRemoteCertificateChainErrors = false)
         {
             _ipAddress = ipAddress;
             _port = port;
+            _sslServername = sslServername;
+            _sslAllowRemoteCertificateChainErrors = sslAllowRemoteCertificateChainErrors;
         }
 
         public void Start()
@@ -62,11 +65,11 @@ namespace Guytp.Networking
         /// </summary>
         private void EnsureConnection()
         {
-            if (_socket != null)
+            if (_client != null)
                 return;
-            _socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-            _socket.Connect(_ipAddress, _port);
-            _connection = new NetworkConnection(_socket);
+            _client = new TcpClient();
+            _client.Connect(_ipAddress, _port);
+            _connection = _sslServername != null ? new NetworkConnection(_client, _sslServername, _sslAllowRemoteCertificateChainErrors) : new NetworkConnection(_client);
             IsConnected = true;
             Connected?.Invoke(this, new EventArgs());
             Logger.ApplicationInstance.Debug("Connected to " + _ipAddress + ":" + _port);
@@ -95,7 +98,7 @@ namespace Guytp.Networking
                         finally
                         {
                             _connection = null;
-                            _socket = null;
+                            _client = null;
                             Disconnected?.Invoke(this, new EventArgs());
                         }
                     }
@@ -116,7 +119,7 @@ namespace Guytp.Networking
                         {
                             // Intentionally swallowed
                         }
-                        _socket = null;
+                        _client = null;
                         _connection = null;
                         Logger.ApplicationInstance.Error("Failed to connect to remote host", ex);
                         DateTime waitUntil = DateTime.UtcNow.AddSeconds(5);
@@ -208,7 +211,7 @@ namespace Guytp.Networking
             finally
             {
                 _connection = null;
-                _socket = null;
+                _client = null;
                 Disconnected?.Invoke(this, new EventArgs());
             }
             Logger.ApplicationInstance.Debug("Finished network client thread");
