@@ -2,14 +2,19 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Security;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Guytp.Networking
 {
     internal class NetworkConnection : IDisposable
     {
-        private Socket _socket;
+        private TcpClient _client;
+
+        private int _packetSizeBufferOffset = 0;
 
         private readonly BinaryFormatter _formatter = new BinaryFormatter
         {
@@ -50,16 +55,64 @@ namespace Guytp.Networking
 
         private int _expectedPingResponseId;
         private bool _isPingRequestWriteDue;
-
+        private bool _sslAllowRemoteCertificateChainErrors;
         public event EventHandler<EventArgs> Invalidated;
+        private readonly bool _useSsl;
 
-        public NetworkConnection(Socket socket)
+        private Stream _stream;
+
+        public NetworkConnection(TcpClient client)
+            : this(client, false, false, null, null, false)
         {
+        }
+
+        public NetworkConnection(TcpClient client, string sslExpectedServerName, bool sslAllowRemoteCertificateChainErrors)
+            : this(client, true, false, sslExpectedServerName, null, sslAllowRemoteCertificateChainErrors)
+        {
+        }
+
+        public NetworkConnection(TcpClient client, X509Certificate sslServerCertificate)
+            : this(client, true, true, null, sslServerCertificate, false)
+        {
+        }
+
+        private NetworkConnection(TcpClient client, bool useSsl, bool isServer, string serverName, X509Certificate serverCertificate, bool sslAllowRemoteCertificateChainErrors)
+        {
+            _useSsl = useSsl;
+            _sslAllowRemoteCertificateChainErrors = sslAllowRemoteCertificateChainErrors;
             LastDataReceived = DateTime.UtcNow;
             LastDataSent = DateTime.UtcNow;
             Config = new ConnectionConfig();
             OutboundMessageQueue = new NetworkMessageQueue();
-            _socket = socket;
+            _client = client;
+            _stream = client.GetStream();
+            if (useSsl)
+            {
+                SslStream sslStream = isServer ? new SslStream(_stream, false) : new SslStream(_stream, false, OnValidateServerSslCertificate, null);
+                _stream = sslStream;
+                try
+                {
+                    if (isServer)
+                        sslStream.AuthenticateAsServer(serverCertificate, false, SslProtocols.Tls, true);
+                    else
+                        sslStream.AuthenticateAsClient(serverName);
+                }
+                catch (AuthenticationException ex)
+                {
+                    Logger.ApplicationInstance.Warn("Failed to generate SSL connection", ex);
+                    Invalidate("Failed to create secure connection with SSL");
+                }
+            }
+            _stream.ReadTimeout = 1000;
+            _stream.WriteTimeout = 1000;
+        }
+
+        private bool OnValidateServerSslCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {
+            if (sslPolicyErrors == SslPolicyErrors.None || (sslPolicyErrors == SslPolicyErrors.RemoteCertificateChainErrors && _sslAllowRemoteCertificateChainErrors))
+                return true;
+            Logger.ApplicationInstance.Warn("Error accepting server SSL certificate " + sslPolicyErrors);
+            return false;
         }
 
         /// <summary>
@@ -74,21 +127,23 @@ namespace Guytp.Networking
             if (IsInvalidated)
                 return false;
 
+            // Ensure we have some data available, as we may have SSL we don't always know exactly how many bytes - we just don't want to block
+            if (_client.Available < 1)
+                return false;
+
             // If we're not reading a packet, determine packet size
             int bytesRead;
             if (_packetSize == 0)
             {
-                // We need 4 bytes to determine data length to read, without that we wait
-                if (_socket.Available < 4)
-                    return false;
-
                 // Determine how big the packet is
-                if ((bytesRead = _socket.Receive(_packetSizeBuffer, 4, SocketFlags.None)) != 4)
-                {
-                    Invalidate("Expected 4 bytes but got " + bytesRead + " determining packet length");
+                int packetSizeToRead = 4 - _packetSizeBufferOffset;
+                bytesRead = _stream.Read(_packetSizeBuffer, _packetSizeBufferOffset, packetSizeToRead);
+                _packetSizeBufferOffset += bytesRead;
+                if (bytesRead != packetSizeToRead)
+                    // Not all of the bytes are yet available, wait to come back in
                     return false;
-                }
                 _packetSize = BitConverter.ToInt32(_packetSizeBuffer, 0);
+                _packetSizeBufferOffset = 0;
 
                 // First let's handle special cases - a ping request has a packet size of -1
                 if (_packetSize == -1)
@@ -136,25 +191,23 @@ namespace Guytp.Networking
             }
 
             // Read as much data as possible, up to packet size
-            int available = _socket.Available;
             int remainingRead = _packetSize - _fullBuffer.Count;
-            int dataToRead = available >= remainingRead ? remainingRead : available;
-            while (dataToRead > 0)
+            while (remainingRead > 0)
             {
-                int readThisLoop = dataToRead < _readbuffer.Length ? dataToRead : _readbuffer.Length;
-                bytesRead = _socket.Receive(_readbuffer, readThisLoop, SocketFlags.None);
+                int readThisLoop = remainingRead < _readbuffer.Length ? remainingRead : _readbuffer.Length;
+                bytesRead = _stream.Read(_readbuffer, 0, readThisLoop);
                 LastDataReceived = DateTime.UtcNow;
-                if (bytesRead != readThisLoop)
-                {
-                    Invalidate("Packet size mismatch between required read of " + readThisLoop + " and " + bytesRead + " read");
-                    return false;
-                }
                 if (bytesRead == _readbuffer.Length)
                     _fullBuffer.AddRange(_readbuffer);
                 else
                     for (int i = 0; i < bytesRead; i++)
                         _fullBuffer.Add(_readbuffer[i]);
-                dataToRead -= bytesRead;
+                remainingRead -= bytesRead;
+                if (bytesRead < readThisLoop)
+                {
+                    // No more data to read so we can break out for now
+                    break;
+                }
             }
 
             // Have we read all of it if not we have to come back later?
@@ -311,11 +364,15 @@ namespace Guytp.Networking
                 offset += 4;
                 Array.Copy(messageBuffer, 0, outputBuffer, offset, messageBuffer.Length);
             }
-            _socket.BeginSend(outputBuffer, 0, outputBuffer.Length, SocketFlags.None, new AsyncCallback(SocketSendCallback), null);
+            if (_useSsl)
+                ((SslStream)_stream).BeginWrite(outputBuffer, 0, outputBuffer.Length, new AsyncCallback(SocketSendCallback), null);
+            else
+                ((NetworkStream)_stream).BeginWrite(outputBuffer, 0, outputBuffer.Length, new AsyncCallback(SocketSendCallback), null);
         }
 
         private void SocketSendCallback(IAsyncResult ar)
         {
+            _stream.EndWrite(ar);
             lock (_isSendingLocker)
                 _isSending = false;
             LastDataSent = DateTime.UtcNow;
@@ -337,12 +394,12 @@ namespace Guytp.Networking
             _readbuffer = null;
             _fullBuffer = null;
             _packetSizeBuffer = null;
-            if (_socket != null)
+            List<Exception> exceptions = new List<Exception>();
+            if (_stream != null)
             {
-                List<Exception> exceptions = new List<Exception>();
                 try
                 {
-                    _socket.Shutdown(SocketShutdown.Both);
+                    _stream.Close();
                 }
                 catch (Exception ex)
                 {
@@ -350,24 +407,36 @@ namespace Guytp.Networking
                 }
                 try
                 {
-                    _socket.Disconnect(false);
+                    _stream.Dispose();
                 }
                 catch (Exception ex)
                 {
                     exceptions.Add(ex);
                 }
-                try
-                {
-                    _socket.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    exceptions.Add(ex);
-                }
-                _socket = null;
-                if (exceptions.Count > 0)
-                    throw new AggregateException(exceptions.ToArray());
+                _stream = null;
             }
+            if (_client != null)
+            {
+                try
+                {
+                    _client.Close();
+                }
+                catch (Exception ex)
+                {
+                    exceptions.Add(ex);
+                }
+                try
+                {
+                    _client.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    exceptions.Add(ex);
+                }
+                _client = null;
+            }
+            if (exceptions.Count > 0)
+                throw new AggregateException(exceptions.ToArray());
         }
     }
 }

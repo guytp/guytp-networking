@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 
 namespace Guytp.Networking
@@ -20,12 +21,15 @@ namespace Guytp.Networking
 
         private readonly int _port;
 
+        private readonly X509Certificate _sslServerCertificate;
+
         protected abstract Dictionary<Type, MessageHandlerDelegate> MessageHandlers { get; }
 
-        protected NetworkServer(IPAddress ipAddress, int port)
+        protected NetworkServer(IPAddress ipAddress, int port, X509Certificate sslServerCertificate = null)
         {
             _ipAddress = ipAddress;
             _port = port;
+            _sslServerCertificate = sslServerCertificate;
         }
 
         public void Start()
@@ -72,8 +76,7 @@ namespace Guytp.Networking
                     {
                         try
                         {
-                            Socket acceptedSocket = _tcpListener.AcceptSocket();
-                            connections.Add(new NetworkConnection(acceptedSocket));
+                            connections.Add(_sslServerCertificate != null ? new NetworkConnection(_tcpListener.AcceptTcpClient(), _sslServerCertificate) : new NetworkConnection(_tcpListener.AcceptTcpClient()));
                             Logger.ApplicationInstance.Debug("New connection accepted");
                         }
                         catch (Exception ex)
