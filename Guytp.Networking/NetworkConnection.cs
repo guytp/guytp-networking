@@ -43,7 +43,7 @@ namespace Guytp.Networking
 
         public string InvalidationReason { get; private set; }
 
-        public ConnectionConfig Config { get; private set; }
+        public ConnectionConfig Config { get; set; }
 
         public DateTime LastDataReceived { get; private set; }
 

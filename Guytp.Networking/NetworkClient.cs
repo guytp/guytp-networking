@@ -27,6 +27,7 @@ namespace Guytp.Networking
 
         protected abstract Dictionary<Type, MessageHandlerDelegate> MessageHandlers { get; }
 
+        public ConnectionConfig ConnectionConfig { get; private set; }
 
         protected NetworkMessageQueue MessageQueue => _connection.OutboundMessageQueue;
         public bool IsConnected { get; private set; }
@@ -42,6 +43,7 @@ namespace Guytp.Networking
             _port = port;
             _sslServername = sslServername;
             _sslAllowRemoteCertificateChainErrors = sslAllowRemoteCertificateChainErrors;
+            ConnectionConfig = new ConnectionConfig();
         }
 
         public void Start()
@@ -70,6 +72,7 @@ namespace Guytp.Networking
             _client = new TcpClient();
             _client.Connect(_ipAddress, _port);
             _connection = _sslServername != null ? new NetworkConnection(_client, _sslServername, _sslAllowRemoteCertificateChainErrors) : new NetworkConnection(_client);
+            _connection.Config = ConnectionConfig;
             IsConnected = true;
             Connected?.Invoke(this, new EventArgs());
             Logger.ApplicationInstance.Debug("Connected to " + _ipAddress + ":" + _port);
