@@ -199,7 +199,7 @@ namespace Guytp.Networking
                 {
                     Logger.ApplicationInstance.Error("Fatal error that was not caught by network client", ex);
                 }
-                Thread.Sleep(10);
+                Thread.Sleep(50);
             }
 
             //  Disconnect

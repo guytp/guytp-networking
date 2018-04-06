@@ -181,7 +181,7 @@ namespace Guytp.Networking
                 {
                     Logger.ApplicationInstance.Error("Fatal error processing network server", ex);
                 }
-                Thread.Sleep(10);
+                Thread.Sleep(50);
             }
 
             // Now disconnect everyone
