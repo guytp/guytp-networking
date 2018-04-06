@@ -175,11 +175,13 @@ namespace Guytp.Networking
                         {
                             connections.Remove(connection);
                         }
+
                 }
                 catch (Exception ex)
                 {
                     Logger.ApplicationInstance.Error("Fatal error processing network server", ex);
                 }
+                Thread.Sleep(10);
             }
 
             // Now disconnect everyone
